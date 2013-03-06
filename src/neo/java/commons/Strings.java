@@ -9,6 +9,11 @@ import java.io.UnsupportedEncodingException;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.security.MessageDigest;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
@@ -23,7 +28,7 @@ public class Strings {
 	/** ISO-8859-1 字符集的标识 */
 	public static final String ISO8859 = "ISO-8859-1";
 	/** 检查 URL 的正则 */
-	private static final String URL_CHECKER = "^(http|www|ftp)?(://)?(//w+(-//w+)*)(//.(//w+(-//w+)*))*((://d+)?)(/(//w+(-//w+)*))*(//.?(//w)*)(//?)?(((//w*%)*(//w*//?)*(//w*:)*(//w*//+)*(//w*//.)*(//w*&)*(//w*-)*(//w*=)*(//w*%)*(//w*//?)*(//w*:)*(//w*//+)*(//w*//.)*(//w*&)*(//w*-)*(//w*=)*)*(//w*)*)$";
+	private static final String URL_CHECKER = "^(http|ftp)?(s)?://([\\w-]+.)+[\\w-]+(/[\\w- ./?%&=+-_]*)?$";
 
 	/**
 	 * 字符串判空
@@ -57,6 +62,33 @@ public class Strings {
 	}
 
 	/**
+	 * 控制台遍历输出 Map<String, String>
+	 * 
+	 * @param map
+	 *            待遍历的 Map
+	 */
+	public static void sysoutMaps(Map<String, String> map) {
+		String key = null;
+		Iterator<String> iterator = map.keySet().iterator();
+		while (iterator.hasNext()) {
+			key = iterator.next();
+			System.out.println(key + " => " + map.get(key));
+		}
+	}
+
+	/**
+	 * 获取当前时间，格式自定
+	 * 
+	 * @param pattern
+	 *            简单日期格式模式
+	 * @return 格式化后的字符串对象
+	 */
+	public static String getCurrentTimeString(String pattern) {
+		SimpleDateFormat format = new SimpleDateFormat(pattern);
+		return format.format(new Date());
+	}
+
+	/**
 	 * 当前字符集转 ISO8859
 	 * 
 	 * @param string
@@ -82,6 +114,21 @@ public class Strings {
 	public static String getISO(String string, String charset)
 			throws UnsupportedEncodingException {
 		return new String(string.getBytes(charset), ISO8859);
+	}
+
+	/**
+	 * 简单的正则
+	 * 
+	 * @param reg
+	 *            正则模式字符串
+	 * @param content
+	 *            待匹配的内容
+	 * @return 匹配结果集对象
+	 */
+	public static Matcher grep(String reg, String content) {
+		Pattern pattern = Pattern.compile(reg);
+		Matcher matcher = pattern.matcher(content);
+		return matcher;
 	}
 
 	/**

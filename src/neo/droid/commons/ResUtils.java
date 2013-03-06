@@ -4,6 +4,7 @@ import java.io.FileDescriptor;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -23,6 +24,8 @@ import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.params.BasicHttpParams;
 import org.apache.http.params.HttpConnectionParams;
+import org.json.JSONException;
+import org.json.JSONObject;
 import org.ksoap2.SoapEnvelope;
 import org.ksoap2.serialization.MarshalBase64;
 import org.ksoap2.serialization.SoapObject;
@@ -602,7 +605,27 @@ public class ResUtils {
 			USER_AGENT = "";
 		}
 	}
-	
+
+	/**
+	 * 解析 JSON
+	 * 
+	 * @param json
+	 *            待解析的 json 字符串
+	 * @param valueList
+	 *            待获取的值列表
+	 * @return 指定需求的键值对
+	 * @throws JSONException
+	 */
+	public static Map<String, String> parseJson(String json,
+			List<String> valueList) throws JSONException {
+		Map<String, String> map = new HashMap<String, String>();
+		JSONObject object = new JSONObject(json);
+		for (int i = 0; i < valueList.size(); i++) {
+			map.put(valueList.get(i), object.getString(valueList.get(i)));
+		}
+		return map;
+	}
+
 	/**
 	 * 调用 Web Service
 	 * 
