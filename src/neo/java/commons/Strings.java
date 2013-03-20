@@ -13,6 +13,7 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.TimeZone;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -69,11 +70,14 @@ public class Strings {
 	 */
 	public static void sysoutMaps(Map<String, String> map) {
 		String key = null;
+		StringBuilder stringBuilder = new StringBuilder();
 		Iterator<String> iterator = map.keySet().iterator();
 		while (iterator.hasNext()) {
 			key = iterator.next();
-			System.out.println(key + " => " + map.get(key));
+			stringBuilder.append(key + " => " + map.get(key) + ", ");
 		}
+
+		System.out.println(stringBuilder.toString() + "\n");
 	}
 
 	/**
@@ -86,6 +90,21 @@ public class Strings {
 	public static String getCurrentTimeString(String pattern) {
 		SimpleDateFormat format = new SimpleDateFormat(pattern);
 		return format.format(new Date());
+	}
+
+	/**
+	 * 从时间戳转指定格式化日期
+	 * 
+	 * @param timeStamp
+	 *            时间戳
+	 * @param pattern
+	 *            简单日期格式模式
+	 * @return 格式化后的字符串对象
+	 */
+	public static String getFormattedTimeString(int timeStamp, String pattern) {
+		SimpleDateFormat format = new SimpleDateFormat(pattern);
+		format.setTimeZone(TimeZone.getTimeZone("UTC"));
+		return format.format(timeStamp * 1000);
 	}
 
 	/**
@@ -257,8 +276,8 @@ public class Strings {
 
 			while ((null != (perLine = stdout.readLine()))
 					|| (null != (perLine = stderr.readLine()))) {
-				if (isEmpty(perLine)) {
-					sBuilder.append(perLine);
+				if (false == isEmpty(perLine)) {
+					sBuilder.append(perLine + "\n");
 				}
 			}
 
