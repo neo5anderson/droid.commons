@@ -257,8 +257,8 @@ public class Strings {
 
 			while ((null != (perLine = stdout.readLine()))
 					|| (null != (perLine = stderr.readLine()))) {
-				if (isEmpty(perLine)) {
-					sBuilder.append(perLine);
+				if (false == isEmpty(perLine)) {
+					sBuilder.append(perLine + "\n");
 				}
 			}
 

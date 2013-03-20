@@ -129,6 +129,7 @@ public class SQLiteHelper {
 			result += "\n";
 		}
 
+		cursor.close();
 		return result;
 	}
 

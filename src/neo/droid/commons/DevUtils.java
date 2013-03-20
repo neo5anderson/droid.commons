@@ -118,8 +118,10 @@ public class DevUtils {
 					Uri.parse("content://telephony/carriers/preferapn"),
 					values, null, null);
 
+			cursor.close();
 			return true;
 		} else {
+			cursor.close();
 			return false;
 		}
 	}
