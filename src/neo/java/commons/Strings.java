@@ -54,12 +54,7 @@ public class Strings {
 	 * @return 是否
 	 */
 	public static boolean isNetworkURL(String url) {
-		if (Pattern.compile(URL_CHECKER, Pattern.CASE_INSENSITIVE).matcher(url)
-				.find()) {
-			return true;
-		} else {
-			return false;
-		}
+		return grep(URL_CHECKER, url).find();
 	}
 
 	/**
@@ -145,9 +140,7 @@ public class Strings {
 	 * @return 匹配结果集对象
 	 */
 	public static Matcher grep(String reg, String content) {
-		Pattern pattern = Pattern.compile(reg);
-		Matcher matcher = pattern.matcher(content);
-		return matcher;
+		return Pattern.compile(reg).matcher(content);
 	}
 
 	/**

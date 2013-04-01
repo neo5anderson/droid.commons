@@ -30,18 +30,18 @@ public class NetUtils {
 	 */
 	public static String inputStream2String(InputStream inputStream, String enc)
 			throws IOException {
-		String result = "";
+		StringBuilder sBuilder = new StringBuilder();
 		BufferedReader reader = new BufferedReader(new InputStreamReader(
 				inputStream, enc), 512);
 
 		String tmpString = reader.readLine();
-		while (false == Strings.isEmpty(tmpString)) {
-			result += tmpString + "\n";
+		while (null != tmpString) {
+			sBuilder.append(tmpString + "\n");
 			tmpString = reader.readLine();
 		}
 
 		reader.close();
-		return result;
+		return sBuilder.toString();
 	}
 
 	/**
