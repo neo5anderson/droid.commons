@@ -10,7 +10,7 @@ import android.database.sqlite.SQLiteOpenHelper;
 /**
  * SQLite 协助类
  * 
- * @author Neo
+ * @author neo
  */
 public class SQLiteHelper {
 	/** 数据库名称 */
@@ -64,7 +64,7 @@ public class SQLiteHelper {
 	/**
 	 * SQLiteOpenHelper 派生类
 	 * 
-	 * @author Neo
+	 * @author neo
 	 */
 	class SQLiteOpenSubHelper extends SQLiteOpenHelper {
 		/** SQLiteOpenSubHelper 构造方法 */
@@ -97,7 +97,20 @@ public class SQLiteHelper {
 		}
 	}
 
-	/** 类似于 SQLiteDatabase.query 的方法，注意 distinct 被放在了最后 */
+	/**
+	 * 类似于 SQLiteDatabase.query 的方法，注意 distinct 被放在了最后
+	 * 
+	 * @param table
+	 * @param cols
+	 * @param where
+	 * @param selectionArgs
+	 * @param groupBy
+	 * @param having
+	 * @param orderBy
+	 * @param limit
+	 * @param distinct
+	 * @return
+	 */
 	public Cursor query(String table, String[] cols, String where,
 			String[] selectionArgs, String groupBy, String having,
 			String orderBy, String limit, boolean distinct) {
@@ -105,7 +118,12 @@ public class SQLiteHelper {
 				groupBy, having, orderBy, limit);
 	}
 
-	/** 将 Cursor 类型的查询结果转成 String，含 Title，可能是空值 */
+	/**
+	 * 将 Cursor 类型的查询结果转成 String，含 Title，可能是空值
+	 * 
+	 * @param cursor
+	 * @return
+	 */
 	public String cursor2String(Cursor cursor) {
 		if (0 == cursor.getColumnCount()) {
 			// [Neo] 注意，可能是空值
@@ -133,19 +151,35 @@ public class SQLiteHelper {
 		return result;
 	}
 
-	/** 执行 SQL 语句，无法返回值 */
+	/**
+	 * 执行 SQL 语句，无法返回值
+	 * 
+	 * 
+	 * @param sql
+	 * @throws SQLException
+	 */
 	public synchronized void execSQL(String sql) throws SQLException {
 		if (null != mDatabase) {
 			mDatabase.execSQL(sql);
 		}
 	}
 
-	/** 执行 select SQL 语句，返回 Cursor */
+	/**
+	 * 执行 select SQL 语句，返回 Cursor
+	 * 
+	 * @param sql
+	 * @return
+	 */
 	public Cursor selectSQL(String sql) {
 		return mDatabase.rawQuery(sql, null);
 	}
 
-	/** 执行 select SQL 语句，返回 String */
+	/**
+	 * 执行 select SQL 语句，返回 String
+	 * 
+	 * @param sql
+	 * @return
+	 */
 	public String selectSQLString(String sql) {
 		return cursor2String(selectSQL(sql));
 	}

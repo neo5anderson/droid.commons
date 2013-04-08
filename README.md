@@ -12,6 +12,9 @@ Android 也搞了快一年了，稍稍整理些常用的方法，方便以后的
 依赖 `ksoap2-android-assembly-3.x-jar-with-dependencies.jar` 请访问其官方  
 的页面 [下载](http://code.google.com/p/ksoap2-android/wiki/HowToUse?tm=2)
 
++ 2013.04.08 ResUtils.java 去除调用 WebServices 的静态方法，在打包时多有  
+不便，索性就不要了；并添加了几个新的工具类，之前的稍作改动，暂没有打包。
+
 # neo.java.commons
 
 这个包里面都是纯 Java 的工具包，都是自己写的，一开始就想把 Android 代码和  

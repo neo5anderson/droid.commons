@@ -1,15 +1,20 @@
 package neo.droid.commons;
 
+import java.io.File;
 import java.io.FileDescriptor;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.InetAddress;
+import java.net.NetworkInterface;
+import java.net.SocketException;
 import java.util.ArrayList;
+import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Set;
 
 import org.apache.http.HttpResponse;
 import org.apache.http.NameValuePair;
@@ -26,12 +31,6 @@ import org.apache.http.params.BasicHttpParams;
 import org.apache.http.params.HttpConnectionParams;
 import org.json.JSONException;
 import org.json.JSONObject;
-import org.ksoap2.SoapEnvelope;
-import org.ksoap2.serialization.MarshalBase64;
-import org.ksoap2.serialization.SoapObject;
-import org.ksoap2.serialization.SoapSerializationEnvelope;
-import org.ksoap2.transport.HttpTransportSE;
-import org.xmlpull.v1.XmlPullParserException;
 
 import android.app.Activity;
 import android.app.ActivityManager;
@@ -241,7 +240,7 @@ public class ResUtils {
 	 */
 	public static InputStream getAssetsInputStream(String fileName)
 			throws IOException {
-		return getResources().getAssets().open(fileName);
+		return CONTEXT.getAssets().open(fileName);
 	}
 
 	/**
@@ -253,7 +252,64 @@ public class ResUtils {
 	 */
 	public static AssetFileDescriptor getAssetFileDescriptor(String fileName)
 			throws IOException {
-		return getResources().getAssets().openFd(fileName);
+		return CONTEXT.getAssets().openFd(fileName);
+	}
+
+	/**
+	 * 复制 assets 的文件至指定路径
+	 * 
+	 * @param targetPath
+	 *            指定路径
+	 * @return 是否成功
+	 */
+	public static boolean cpAssetFileTo(String targetPath) {
+		InputStream inputStream = null;
+		FileOutputStream outputStream = null;
+
+		try {
+			String[] files = CONTEXT.getAssets().list("");
+
+			int perLength;
+			byte[] buffer = new byte[1024];
+
+			for (int i = 0; i < files.length; i++) {
+				try {
+					inputStream = getAssetsInputStream(files[i]);
+				} catch (Exception e) {
+					break;
+				}
+
+				outputStream = new FileOutputStream(new File(targetPath,
+						files[i]));
+
+				while (-1 != (perLength = inputStream.read(buffer))) {
+					outputStream.write(buffer, 0, perLength);
+				}
+
+				outputStream.flush();
+				inputStream.close();
+				outputStream.close();
+
+			}
+
+		} catch (Exception e) {
+			e.printStackTrace();
+			try {
+				if (null != inputStream) {
+					inputStream.close();
+				}
+				if (null != outputStream) {
+					outputStream.close();
+				}
+			} catch (Exception e2) {
+				// [Neo] Empty
+
+			}
+
+			return false;
+		}
+
+		return true;
 	}
 
 	/**
@@ -399,6 +455,19 @@ public class ResUtils {
 	}
 
 	/**
+	 * 判断 SD 是否已经挂载
+	 * 
+	 * @return 是否
+	 */
+	public static boolean isSDAvailable() {
+		if (Environment.getExternalStorageState().equals(
+				Environment.MEDIA_MOUNTED)) {
+			return true;
+		}
+		return false;
+	}
+
+	/**
 	 * 获取 SD 可用空间
 	 * 
 	 * @return 整型数据
@@ -412,6 +481,35 @@ public class ResUtils {
 		} else {
 			return 0L;
 		}
+	}
+
+	/**
+	 * 获取本地网络设备的地址，lo eth wlan
+	 * 
+	 * @return 设备名称 => 设备地址
+	 */
+	public static Map<String, String> getLocalIpAddr() {
+		try {
+			Map<String, String> map = new HashMap<String, String>();
+			for (Enumeration<NetworkInterface> eNetIf = NetworkInterface
+					.getNetworkInterfaces(); eNetIf.hasMoreElements();) {
+				NetworkInterface netIf = eNetIf.nextElement();
+				String name = netIf.getName();
+				if (name.contains("lo") || name.contains("eth")
+						|| name.contains("wlan")) {
+					for (Enumeration<InetAddress> eIpAddr = netIf
+							.getInetAddresses(); eIpAddr.hasMoreElements();) {
+						InetAddress addr = eIpAddr.nextElement();
+						map.put(name, addr.getHostAddress());
+					}
+				}
+			}
+			return map;
+		} catch (SocketException e) {
+			e.printStackTrace();
+		}
+
+		return null;
 	}
 
 	/**
@@ -626,62 +724,4 @@ public class ResUtils {
 		return map;
 	}
 
-	/**
-	 * 调用 Web Service
-	 * 
-	 * @param wsdlURL
-	 *            wsdl 完整 URL
-	 * @param namespace
-	 *            命名空间
-	 * @param method
-	 *            调用的方法名称
-	 * @param params
-	 *            调用参数
-	 * @param timeout
-	 *            链接最大超时时间
-	 * @param isDotNet
-	 *            是否是 .Net 服务端
-	 * @return
-	 * @throws IOException
-	 * @throws XmlPullParserException
-	 */
-	public static String CallWebService(String wsdlURL, String namespace,
-			String method, Map<String, String> params, int timeout,
-			boolean isDotNet) throws IOException, XmlPullParserException {
-
-		SoapObject soapObject = new SoapObject(namespace, method);
-
-		if (null != params && params.size() > 0) {
-			String key;
-			Set<String> keysSet = params.keySet();
-			Iterator<String> iterator = keysSet.iterator();
-
-			while (iterator.hasNext()) {
-				key = iterator.next();
-				soapObject.addProperty(key, params.get(key));
-			}
-		}
-
-		SoapSerializationEnvelope envelope = new SoapSerializationEnvelope(
-				SoapEnvelope.VER11);
-		envelope.bodyOut = soapObject;
-		envelope.setOutputSoapObject(soapObject);
-		envelope.encodingStyle = "UTF-8";
-
-		if (false != isDotNet) {
-			envelope.dotNet = true;
-		}
-
-		(new MarshalBase64()).register(envelope);
-
-		HttpTransportSE httpTransportSE = new HttpTransportSE(wsdlURL, timeout);
-		httpTransportSE.debug = true;
-
-		httpTransportSE.call(namespace + method, envelope);
-		if (null != envelope.getResponse()) {
-			return envelope.getResponse().toString();
-		}
-
-		return "";
-	}
 }
