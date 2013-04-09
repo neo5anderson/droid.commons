@@ -5,6 +5,7 @@ import java.io.FileDescriptor;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Field;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.net.SocketException;
@@ -91,7 +92,8 @@ public class ResUtils {
 		CONTEXT = context;
 		DENSITY = context.getResources().getDisplayMetrics().density;
 
-		if (CONTEXT instanceof Activity) {
+		try {
+			// [Neo] 有点小纠结，预览时可能会有空指针异常
 			DISPLAY = ((Activity) CONTEXT).getWindowManager()
 					.getDefaultDisplay();
 
@@ -102,10 +104,11 @@ public class ResUtils {
 				DISPLAY_WIDTH = 0;
 				DISPLAY_HEIGHT = 0;
 			}
-		} else {
+		} catch (Exception e) {
 			DISPLAY = null;
 			DISPLAY_WIDTH = 0;
 			DISPLAY_HEIGHT = 0;
+			e.printStackTrace();
 		}
 	}
 
@@ -425,6 +428,31 @@ public class ResUtils {
 					.toUpperCase();
 		}
 		return MEID;
+	}
+
+	public static Map<String, String> getRClassField(String className) {
+		Class<?> class2do = null;
+
+		try {
+			class2do = Class.forName(CONTEXT.getPackageName() + ".R$"
+					+ className);
+		} catch (Exception e) {
+			return null;
+		}
+
+		Map<String, String> map = new HashMap<String, String>();
+
+		Field[] fields = class2do.getDeclaredFields();
+		for (int i = 0; i < fields.length; i++) {
+			try {
+				map.put(fields[i].getName(), "" + fields[i].getInt(null));
+			} catch (Exception e) {
+				map.put(fields[i].getName(), "0");
+				e.printStackTrace();
+			}
+		}
+
+		return map;
 	}
 
 	/**

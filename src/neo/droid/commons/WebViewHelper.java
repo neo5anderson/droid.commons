@@ -1,10 +1,13 @@
 package neo.droid.commons;
 
 import android.annotation.SuppressLint;
+import android.content.Context;
 import android.graphics.Bitmap;
 import android.os.Handler;
 import android.os.Message;
+import android.view.MotionEvent;
 import android.view.View;
+import android.view.ViewGroup.LayoutParams;
 import android.webkit.DownloadListener;
 import android.webkit.HttpAuthHandler;
 import android.webkit.JsResult;
@@ -12,6 +15,7 @@ import android.webkit.WebChromeClient;
 import android.webkit.WebSettings.ZoomDensity;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.widget.LinearLayout;
 
 /**
  * WebView 帮助类
@@ -38,8 +42,10 @@ public class WebViewHelper {
 	public static final int ARG1_HTTP_AUTH = 0x05;
 	/** 页面需要下载的信息分类 **/
 	public static final int ARG1_DOWNLOAD = 0x10;
+	/** 滑动至顶部消息 **/
+	public static final int ARG1_SCROLL_TO_TOP = 0x20;
 
-	private WebView webView;
+	private MyWebView webView;
 	private static Handler HANDLER;
 
 	private boolean isGBK = true;
@@ -54,8 +60,11 @@ public class WebViewHelper {
 	 * @param webView
 	 * @param handler
 	 */
-	public WebViewHelper(WebView webView, Handler handler) {
-		this.webView = webView;
+	public WebViewHelper(Context context, LinearLayout layout, Handler handler) {
+		webView = new MyWebView(context);
+		layout.removeAllViews();
+		layout.addView(webView, new LinearLayout.LayoutParams(new LayoutParams(
+				LayoutParams.FILL_PARENT, LayoutParams.FILL_PARENT)));
 		HANDLER = handler;
 		initWebView();
 	}
@@ -274,6 +283,20 @@ public class WebViewHelper {
 	private static void REPORT(int arg1, int arg2, Object obj) {
 		Message message = HANDLER.obtainMessage(WHAT, arg1, arg2, obj);
 		HANDLER.sendMessage(message);
+	}
+
+	private static class MyWebView extends WebView {
+
+		public MyWebView(Context context) {
+			super(context);
+		}
+
+		@Override
+		public boolean onInterceptTouchEvent(MotionEvent ev) {
+			REPORT(ARG1_SCROLL_TO_TOP, getScrollY(), null);
+			return super.onInterceptTouchEvent(ev);
+		}
+
 	}
 
 	/**

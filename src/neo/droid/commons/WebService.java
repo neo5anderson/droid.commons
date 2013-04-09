@@ -88,7 +88,6 @@ public class WebService extends Service {
 
 		public Daemon(int port) {
 			this.port = port;
-			System.out.println("daemon: " + port);
 		}
 
 		public void close() {

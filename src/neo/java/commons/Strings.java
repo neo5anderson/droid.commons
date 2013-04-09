@@ -6,7 +6,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
-import java.nio.MappedByteBuffer;
+import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.security.MessageDigest;
 import java.text.SimpleDateFormat;
@@ -75,6 +75,25 @@ public class Strings {
 		System.out.println(stringBuilder.toString() + "\n");
 	}
 
+	public static String getMapKeyFromIndexOf(Map<String, String> map, int index) {
+		if (map.size() <= index || index < 0) {
+			index %= map.size();
+		}
+
+		Iterator<String> iterator = map.keySet().iterator();
+		while (iterator.hasNext() && 0 != index) {
+			index--;
+			iterator.next();
+		}
+
+		return iterator.next();
+	}
+
+	public static String getMapValueFromIndexOf(Map<String, String> map,
+			int index) {
+		return map.get(getMapKeyFromIndexOf(map, index));
+	}
+
 	/**
 	 * 获取当前时间，格式自定
 	 * 
@@ -96,10 +115,10 @@ public class Strings {
 	 *            简单日期格式模式
 	 * @return 格式化后的字符串对象
 	 */
-	public static String getFormattedTimeString(int timeStamp, String pattern) {
+	public static String getFormattedTimeString(long timeStamp, String pattern) {
 		SimpleDateFormat format = new SimpleDateFormat(pattern);
 		format.setTimeZone(TimeZone.getTimeZone("UTC"));
-		return format.format(timeStamp * 1000);
+		return format.format(timeStamp);
 	}
 
 	/**
@@ -205,7 +224,7 @@ public class Strings {
 	 */
 	public static String digestFile(String fileName, String algorithm)
 			throws IOException {
-		if (isEmpty(fileName)) {
+		if (isEmpty(fileName) || isEmpty(algorithm)) {
 			return null;
 		}
 
@@ -213,23 +232,33 @@ public class Strings {
 		FileInputStream inputStream = null;
 
 		try {
-			File file = new File(fileName);
-			inputStream = new FileInputStream(file);
+			inputStream = new FileInputStream(new File(fileName));
+			ByteBuffer buffer = ByteBuffer.allocate(8 * 1024);
 			FileChannel channel = inputStream.getChannel();
-			MappedByteBuffer byteBuffer = channel.map(
-					FileChannel.MapMode.READ_ONLY, 0, file.length());
-			inputStream.close();
-			inputStream = null;
 
 			digest = MessageDigest.getInstance(algorithm);
 			digest.reset();
-			digest.update(byteBuffer);
+
+			int perLength = channel.read(buffer);
+			while (-1 != perLength) {
+				buffer.flip();
+				digest.update(buffer);
+				if (false == buffer.hasRemaining()) {
+					buffer.clear();
+				}
+
+				perLength = channel.read(buffer);
+			}
+
+			inputStream.close();
+			inputStream = null;
+
 		} catch (Exception e) {
 			e.printStackTrace();
-		}
-
-		if (null != inputStream) {
-			inputStream.close();
+		} finally {
+			if (null != inputStream) {
+				inputStream.close();
+			}
 		}
 
 		if (null != digest) {
