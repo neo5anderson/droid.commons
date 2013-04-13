@@ -30,7 +30,7 @@ import org.apache.commons.net.ftp.FTPFile;
  * This class is based on the logic of Daniel Savarese's
  * DefaultFTPListParser, but adapted to use regular expressions and to fit the
  * new FTPFileEntryParser interface.
- * @version $Id: UnixFTPEntryParser.java 1299238 2012-03-10 17:12:28Z sebb $
+ * @version $Id: UnixFTPEntryParser.java 1417442 2012-12-05 14:32:02Z sebb $
  * @see org.apache.commons.net.ftp.FTPFileEntryParser FTPFileEntryParser (for usage instructions)
  */
 public class UnixFTPEntryParser extends ConfigurableFTPFileEntryParserImpl
@@ -164,6 +164,7 @@ public class UnixFTPEntryParser extends ConfigurableFTPFileEntryParserImpl
      * @param entry A line of text from the file listing
      * @return An FTPFile instance corresponding to the supplied entry
      */
+    @Override
     public FTPFile parseFTPEntry(String entry) {
         FTPFile file = new FTPFile();
         file.setRawListing(entry);

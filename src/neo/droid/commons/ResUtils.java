@@ -108,7 +108,6 @@ public class ResUtils {
 			DISPLAY = null;
 			DISPLAY_WIDTH = 0;
 			DISPLAY_HEIGHT = 0;
-			e.printStackTrace();
 		}
 	}
 

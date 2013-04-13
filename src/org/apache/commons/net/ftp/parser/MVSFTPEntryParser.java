@@ -31,7 +31,7 @@ import org.apache.commons.net.ftp.FTPFile;
  * @author <a href="jnadler@srcginc.com">Jeff Nadler</a>
  * @author <a href="wnoto@openfinance.com">William Noto</a>
  *
- * @version $Id: MVSFTPEntryParser.java 1325718 2012-04-13 11:13:51Z sebb $
+ * @version $Id: MVSFTPEntryParser.java 1417442 2012-12-05 14:32:02Z sebb $
  * @see org.apache.commons.net.ftp.FTPFileEntryParser FTPFileEntryParser (for
  *      usage instructions)
  */
@@ -229,6 +229,7 @@ public class MVSFTPEntryParser extends ConfigurableFTPFileEntryParserImpl {
      *            A line of text from the file listing
      * @return An FTPFile instance corresponding to the supplied entry
      */
+    @Override
     public FTPFile parseFTPEntry(String entry) {
         boolean isParsed = false;
         FTPFile f = new FTPFile();

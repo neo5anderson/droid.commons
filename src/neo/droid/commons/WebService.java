@@ -9,7 +9,9 @@ import java.net.URLDecoder;
 
 import neo.java.commons.Files;
 import neo.java.commons.Strings;
+import neo.java.commons.TFTPServer;
 
+import org.apache.http.ConnectionClosedException;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpException;
 import org.apache.http.HttpRequest;
@@ -51,8 +53,10 @@ public class WebService extends Service {
 	private static String DOC_ROOT;
 	private static final String INFO = "neo.droid.webserver/0.1";
 	private static final String SUF_DEL = "&delete";
-	
+
 	public static final int DEFAULT_PORT = 8000;
+
+	private static TFTPServer tftpServer;
 
 	@Override
 	public IBinder onBind(Intent intent) {
@@ -62,6 +66,10 @@ public class WebService extends Service {
 	@Override
 	public void onDestroy() {
 		daemon.close();
+
+		// [Neo] TODO
+		System.out.println("tftp stop: " + tftpServer.stop());
+
 		super.onDestroy();
 	}
 
@@ -70,7 +78,11 @@ public class WebService extends Service {
 		ResUtils.make(WebService.this);
 		DOC_ROOT = intent.getStringExtra("root");
 		ResUtils.cpAssetFileTo(DOC_ROOT);
-		
+
+		// [Neo] TODO
+		tftpServer = new TFTPServer(DOC_ROOT);
+		System.out.println("tftp start: " + tftpServer.start());
+
 		daemon = new Daemon(intent.getIntExtra("port", DEFAULT_PORT));
 		daemon.setDaemon(true);
 		daemon.start();
@@ -179,7 +191,9 @@ public class WebService extends Service {
 					httpService.handleRequest(connection, httpContext);
 				}
 			} catch (SocketTimeoutException e) {
-				// [Neo] socket 就不用显示了，不然会有很多异常汇报哦
+				// [Neo] socket 超时的异常不用显示
+			} catch (ConnectionClosedException e) {
+				// [Neo] 客户端切断连接的异常也不用显示
 			} catch (Exception e) {
 				e.printStackTrace();
 			} finally {

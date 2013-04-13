@@ -26,7 +26,6 @@ import org.apache.commons.net.tftp.TFTPWriteRequestPacket;
 public class TFTPServer {
 
 	public static final int DEFAULT_PORT = 69;
-	public static final int DEFAULT_TIMEOUT = 5 * 1000;
 	public static final int ACCESS_WRITE = 0x01;
 	public static final int ACCESS_READ = 0x10;
 
@@ -34,7 +33,6 @@ public class TFTPServer {
 
 	private static int PORT;
 	private static int ACCESS;
-	private static int TIMEOUT;
 	private static String WORK_FOLDER;
 	private static String SERVER_FOLDER;
 
@@ -45,7 +43,6 @@ public class TFTPServer {
 	public TFTPServer() {
 		PORT = DEFAULT_PORT;
 		ACCESS = ACCESS_READ | ACCESS_WRITE;
-		TIMEOUT = DEFAULT_TIMEOUT;
 		WORK_FOLDER = ".";
 		SERVER_FOLDER = ".";
 	}
@@ -53,7 +50,6 @@ public class TFTPServer {
 	public TFTPServer(String workFolder) {
 		PORT = DEFAULT_PORT;
 		ACCESS = ACCESS_READ | ACCESS_WRITE;
-		TIMEOUT = DEFAULT_TIMEOUT;
 		WORK_FOLDER = workFolder;
 		SERVER_FOLDER = workFolder;
 	}
@@ -62,7 +58,6 @@ public class TFTPServer {
 			String serverFolder) {
 		PORT = port;
 		ACCESS = access;
-		TIMEOUT = timeout;
 		WORK_FOLDER = workFolder;
 		SERVER_FOLDER = serverFolder;
 	}
@@ -120,10 +115,6 @@ public class TFTPServer {
 
 		@Override
 		public void run() {
-			System.out.println("daemon started: " + PORT + ", access: "
-					+ ACCESS + ", timeout: " + TIMEOUT + ", w: " + WORK_FOLDER
-					+ ", s: " + SERVER_FOLDER);
-
 			while (false == isQuit) {
 				try {
 					TFTPHandler handler = null;
@@ -141,7 +132,10 @@ public class TFTPServer {
 
 				} catch (SocketTimeoutException e) {
 					// [Neo] Empty
-
+				} catch (SocketException e) {
+					e.printStackTrace();
+					quit();
+					break;
 				} catch (Exception e) {
 					e.printStackTrace();
 				}
@@ -226,7 +220,7 @@ public class TFTPServer {
 			case (TFTPServer.ACCESS_READ | TFTPServer.ACCESS_WRITE):
 				try {
 					inputStream = new BufferedInputStream(new FileInputStream(
-							createFile(TFTPServer.SERVER_FOLDER,
+							createFile(TFTPServer.WORK_FOLDER,
 									readRequestPacket.getFilename())));
 					if (TFTP.ASCII_MODE == readRequestPacket.getMode()) {
 						inputStream = new ToNetASCIIInputStream(inputStream);
@@ -409,9 +403,6 @@ public class TFTPServer {
 							int length = dataPacket.getDataLength();
 							int offset = dataPacket.getDataOffset();
 							byte[] buffer = dataPacket.getData();
-
-							System.out.println("writeHandler block: "
-									+ blockNumber + "/" + block);
 
 							if ((blockNumber + 1) % TFTPServer.BLOCK_WRAP == block) {
 								blockNumber = block;

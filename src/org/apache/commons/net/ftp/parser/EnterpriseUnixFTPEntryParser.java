@@ -29,7 +29,7 @@ import org.apache.commons.net.ftp.FTPFile;
  * DefaultFTPParserFactory by classname.  It will not be chosen
  * by the autodetection scheme.
  * </B>
- * @version $Id: EnterpriseUnixFTPEntryParser.java 1299238 2012-03-10 17:12:28Z sebb $
+ * @version $Id: EnterpriseUnixFTPEntryParser.java 1417442 2012-12-05 14:32:02Z sebb $
  * @author <a href="Winston.Ojeda@qg.com">Winston Ojeda</a>
  * @see org.apache.commons.net.ftp.FTPFileEntryParser FTPFileEntryParser (for usage instructions)
  * @see org.apache.commons.net.ftp.parser.DefaultFTPFileEntryParserFactory
@@ -80,6 +80,7 @@ public class EnterpriseUnixFTPEntryParser extends RegexFTPFileEntryParserImpl
      * @param entry A line of text from the file listing
      * @return An FTPFile instance corresponding to the supplied entry
      */
+    @Override
     public FTPFile parseFTPEntry(String entry)
     {
 

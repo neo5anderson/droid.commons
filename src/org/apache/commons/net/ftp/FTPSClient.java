@@ -38,7 +38,7 @@ import org.apache.commons.net.util.TrustManagerUtils;
  * FTP over SSL processing. If desired, the JVM property -Djavax.net.debug=all can be used to
  * see wire-level SSL details.
  *
- * @version $Id: FTPSClient.java 1407341 2012-11-09 01:31:00Z ggregory $
+ * @version $Id: FTPSClient.java 1448087 2013-02-20 11:20:07Z sebb $
  * @since 2.0
  */
 public class FTPSClient extends FTPClient {
@@ -569,10 +569,12 @@ public class FTPSClient extends FTPClient {
      * during the establishment and initialization of the connection.
      * @throws IOException If there is any problem with the connection.
      * @see FTPClient#_openDataConnection_(int, String)
+     * @deprecated (3.3) Use {@link #_openDataConnection_(FTPCmd, String)} instead
      */
     @Override
     // Strictly speaking this is not needed, but it works round a Clirr bug
     // So rather than invoke the parent code, we do it here
+    @Deprecated
     protected Socket _openDataConnection_(int command, String arg)
             throws IOException {
         return _openDataConnection_(FTPCommand.getCommand(command), arg);

@@ -23,7 +23,7 @@ import org.apache.commons.net.ftp.FTPClientConfig;
 import org.apache.commons.net.ftp.FTPFile;
 
 /**
- * @version $Id: OS400FTPEntryParser.java 1299238 2012-03-10 17:12:28Z sebb $
+ * @version $Id: OS400FTPEntryParser.java 1417442 2012-12-05 14:32:02Z sebb $
  */
 
 public class OS400FTPEntryParser extends ConfigurableFTPFileEntryParserImpl
@@ -73,6 +73,7 @@ public class OS400FTPEntryParser extends ConfigurableFTPFileEntryParserImpl
     }
 
 
+    @Override
     public FTPFile parseFTPEntry(String entry)
     {
 

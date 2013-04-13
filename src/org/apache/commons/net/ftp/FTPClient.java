@@ -361,7 +361,9 @@ implements Configurable
     private boolean __remoteVerificationEnabled;
     private long __restartOffset;
     private FTPFileEntryParserFactory __parserFactory;
-    private int __bufferSize;
+    private int __bufferSize; // buffersize for buffered data streams
+    private int __sendDataSocketBufferSize;
+    private int __receiveDataSocketBufferSize;
     private boolean __listHiddenFiles;
     private boolean __useEPSVwithIPv4; // whether to attempt EPSV with an IPv4 connection
 
@@ -478,34 +480,57 @@ implements Configurable
         __systemName         = null;
         __entryParser        = null;
         __entryParserKey    = "";
-        __bufferSize         = Util.DEFAULT_COPY_BUFFER_SIZE;
+        __bufferSize         = 0;
         __featuresMap = null;
     }
 
     /**
      * Parse the pathname from a CWD reply.
+     * <p>
      * According to RFC959 (http://www.ietf.org/rfc/rfc959.txt), 
-     * it should be the same as for MKD, i.e.
-     * 257<space>"<directory-name>"<space><commentary>
-     * where any embedded double-quotes are doubled.
-     * 
+     * it should be the same as for MKD i.e.
+     * {@code 257<space>"<directory-name>"[<space>commentary]}
+     * where any double-quotes in {@code <directory-name>} are doubled.
+     * Unlike MKD, the commentary is optional.
+     * <p>
      * However, see NET-442 for an exception.
      * 
      * @param reply
-     * @return
+     * @return the pathname, without enclosing quotes, 
+     * or the full string after the reply code and space if the syntax is invalid 
+     * (i.e. enclosing quotes are missing or embedded quotes are not doubled)
      */
-    private static String __parsePathname(String reply)
+    // package protected for access by test cases
+    static String __parsePathname(String reply)
     {
-        int begin = reply.indexOf('"'); // find first double quote
-        if (begin == -1) { // not found, return all after reply code and space
-            return reply.substring(REPLY_CODE_LEN + 1);
-        }
-        int end = reply.lastIndexOf("\" "); // N.B. assume commentary does not contain double-quote
-        if (end != -1 ){ // found end of quoted string, de-duplicate any embedded quotes
-            return reply.substring(begin+1, end).replace("\"\"", "\"");            
+        String param = reply.substring(REPLY_CODE_LEN + 1);
+        if (param.startsWith("\"")) {
+            StringBuilder sb = new StringBuilder();
+            boolean quoteSeen = false;
+            // start after initial quote
+            for(int i=1; i < param.length(); i++) {
+                char ch = param.charAt(i);
+                if (ch=='"') {
+                    if (quoteSeen) {
+                        sb.append(ch);
+                        quoteSeen=false;
+                    } else {
+                        // don't output yet, in case doubled
+                        quoteSeen=true;
+                    }
+                } else {
+                    if (quoteSeen) { // found lone trailing quote within string
+                        return sb.toString();
+                    }
+                    sb.append(ch); // just another character
+                }
+            }
+            if (quoteSeen) { // found lone trailing quote at end of string
+                return sb.toString();
+            }
         }
         // malformed reply, return all after reply code and space
-        return reply.substring(REPLY_CODE_LEN + 1);
+        return param;
     }
 
     /**
@@ -587,10 +612,10 @@ implements Configurable
         __passivePort = port;
     }
 
-    private boolean __storeFile(int command, String remote, InputStream local)
+    private boolean __storeFile(FTPCmd command, String remote, InputStream local)
     throws IOException
     {
-        return _storeFile(FTPCommand.getCommand(command), remote, local);
+        return _storeFile(command.getCommand(), remote, local);
     }
     
     /**
@@ -608,10 +633,9 @@ implements Configurable
         OutputStream output;
 
         if (__fileType == ASCII_FILE_TYPE) {
-            output = new ToNetASCIIOutputStream(
-                     new BufferedOutputStream(socket.getOutputStream(), getDefaultedBufferSize()));
+            output = new ToNetASCIIOutputStream(getBufferedOutputStream(socket.getOutputStream()));
         } else {
-            output = new BufferedOutputStream(socket.getOutputStream(), getDefaultedBufferSize());
+            output = getBufferedOutputStream(socket.getOutputStream());
         }
 
         CSL csl = null;
@@ -622,13 +646,16 @@ implements Configurable
         // Treat everything else as binary for now
         try
         {
-            Util.copyStream(local, output, getDefaultedBufferSize(),
+            Util.copyStream(local, output, getBufferSize(),
                     CopyStreamEvent.UNKNOWN_STREAM_SIZE, __mergeListeners(csl),
                     false);
         }
         catch (IOException e)
         {
             Util.closeQuietly(socket); // ignore close errors here
+            if (csl != null) {
+                csl.cleanUp(); // fetch any outstanding keepalive replies
+            }
             throw e;
         }
 
@@ -642,10 +669,10 @@ implements Configurable
         return ok;
     }
 
-    private OutputStream __storeFileStream(int command, String remote)
+    private OutputStream __storeFileStream(FTPCmd command, String remote)
     throws IOException
     {
-        return _storeFileStream(FTPCommand.getCommand(command), remote);
+        return _storeFileStream(command.getCommand(), remote);
     }
 
     /**
@@ -669,8 +696,7 @@ implements Configurable
             // programmer if possible.  Programmers can decide on their
             // own if they want to wrap the SocketOutputStream we return
             // for file types other than ASCII.
-            output = new BufferedOutputStream(output,
-                    getDefaultedBufferSize());
+            output = getBufferedOutputStream(output);
             output = new ToNetASCIIOutputStream(output);
 
         }
@@ -695,11 +721,38 @@ implements Configurable
      *         the connection.
      * @exception IOException  If an I/O error occurs while either sending a
      *      command to the server or receiving a reply from the server.
+     * @deprecated (3.3) Use {@link #_openDataConnection_(FTPCmd, String)} instead
      */
+    @Deprecated
     protected Socket _openDataConnection_(int command, String arg)
     throws IOException
     {
         return _openDataConnection_(FTPCommand.getCommand(command), arg);
+    }
+
+    /**
+     * Establishes a data connection with the FTP server, returning
+     * a Socket for the connection if successful.  If a restart
+     * offset has been set with {@link #setRestartOffset(long)},
+     * a REST command is issued to the server with the offset as
+     * an argument before establishing the data connection.  Active
+     * mode connections also cause a local PORT command to be issued.
+     * <p>
+     * @param command  The int representation of the FTP command to send.
+     * @param arg The arguments to the FTP command.  If this parameter is
+     *             set to null, then the command is sent with no argument.
+     * @return A Socket corresponding to the established data connection.
+     *         Null is returned if an FTP protocol error is reported at
+     *         any point during the establishment and initialization of
+     *         the connection.
+     * @exception IOException  If an I/O error occurs while either sending a
+     *      command to the server or receiving a reply from the server.
+     * @since 3.3
+     */
+    protected Socket _openDataConnection_(FTPCmd command, String arg)
+    throws IOException
+    {
+        return _openDataConnection_(command.getCommand(), arg);
     }
 
     /**
@@ -778,6 +831,12 @@ implements Configurable
                 if (__dataTimeout >= 0) {
                     socket.setSoTimeout(__dataTimeout);
                 }
+                if (__receiveDataSocketBufferSize > 0) {
+                    socket.setReceiveBufferSize(__receiveDataSocketBufferSize);
+                }
+                if (__sendDataSocketBufferSize > 0) {
+                    socket.setSendBufferSize(__sendDataSocketBufferSize);
+                }
             } finally {
                 server.close();
             }
@@ -810,6 +869,12 @@ implements Configurable
             }
 
             socket = _socketFactory_.createSocket();
+            if (__receiveDataSocketBufferSize > 0) {
+                socket.setReceiveBufferSize(__receiveDataSocketBufferSize);
+            }
+            if (__sendDataSocketBufferSize > 0) {
+                socket.setSendBufferSize(__sendDataSocketBufferSize);
+            }
             if (__passiveLocalHost != null) {
                 socket.bind(new InetSocketAddress(__passiveLocalHost, 0));
             }
@@ -843,11 +908,6 @@ implements Configurable
             throw new IOException(
                     "Host attempting data connection " + socket.getInetAddress().getHostAddress() +
                     " is not same as server " + getRemoteAddress().getHostAddress());
-        }
-
-        if ( __bufferSize > 0 ) {
-            socket.setReceiveBufferSize(__bufferSize);
-            socket.setSendBufferSize(__bufferSize);
         }
 
         return socket;
@@ -1431,9 +1491,14 @@ implements Configurable
      * type.  After changing it, the new type stays in effect until you change
      * it again.  The default file type is <code> FTP.ASCII_FILE_TYPE </code>
      * if this method is never called.
+     * <br>
+     * The server default is supposed to be ASCII (see RFC 959), however many
+     * ftp servers default to BINARY. <b>To ensure correct operation with all servers,
+     * always specify the appropriate file type after connecting to the server.</b>
+     * <br>
      * <p>
-     * <b>N.B.</b> currently calling any connect method will reset the mode to
-     * ACTIVE_LOCAL_DATA_CONNECTION_MODE.
+     * <b>N.B.</b> currently calling any connect method will reset the type to
+     * FTP.ASCII_FILE_TYPE.
      * @param fileType The <code> _FILE_TYPE </code> constant indcating the
      *                 type of file.
      * @return True if successfully completed, false if not.
@@ -1464,14 +1529,19 @@ implements Configurable
      * be set when you want to change the type.  After changing it, the new
      * type stays in effect until you change it again.  The default file type
      * is <code> FTP.ASCII_FILE_TYPE </code> if this method is never called.
+     * <br>
+     * The server default is supposed to be ASCII (see RFC 959), however many
+     * ftp servers default to BINARY. <b>To ensure correct operation with all servers,
+     * always specify the appropriate file type after connecting to the server.</b>
+     * <br>
      * The format should be one of the FTP class <code> TEXT_FORMAT </code>
      * constants, or if the type is <code> FTP.LOCAL_FILE_TYPE </code>, the
      * format should be the byte size for that type.  The default format
      * is <code> FTP.NON_PRINT_TEXT_FORMAT </code> if this method is never
      * called.
      * <p>
-     * <b>N.B.</b> currently calling any connect method will reset the mode to
-     * ACTIVE_LOCAL_DATA_CONNECTION_MODE.
+     * <b>N.B.</b> currently calling any connect method will reset the type to
+     * FTP.ASCII_FILE_TYPE and the formatOrByteSize to FTP.NON_PRINT_TEXT_FORMAT.
      * <p>
      * @param fileType The <code> _FILE_TYPE </code> constant indcating the
      *                 type of file.
@@ -1503,7 +1573,8 @@ implements Configurable
 
     /**
      * Sets the file structure.  The default structure is
-     * <code> FTP.FILE_STRUCTURE </code> if this method is never called.
+     * <code> FTP.FILE_STRUCTURE </code> if this method is never called
+     * or if a connect method is called.
      * <p>
      * @param structure  The structure of the file (one of the FTP class
      *         <code>_STRUCTURE</code> constants).
@@ -1529,7 +1600,8 @@ implements Configurable
 
     /**
      * Sets the transfer mode.  The default transfer mode
-     * <code> FTP.STREAM_TRANSFER_MODE </code> if this method is never called.
+     * <code> FTP.STREAM_TRANSFER_MODE </code> if this method is never called
+     * or if a connect method is called.
      * <p>
      * @param mode  The new transfer mode to use (one of the FTP class
      *         <code>_TRANSFER_MODE</code> constants).
@@ -1766,7 +1838,7 @@ implements Configurable
     public boolean retrieveFile(String remote, OutputStream local)
     throws IOException
     {
-        return _retrieveFile(FTPCommand.getCommand(FTPCommand.RETR), remote, local);
+        return _retrieveFile(FTPCmd.RETR.getCommand(), remote, local);
     }
 
     /**
@@ -1783,10 +1855,9 @@ implements Configurable
 
         InputStream input;
         if (__fileType == ASCII_FILE_TYPE) {
-            input = new FromNetASCIIInputStream(
-                    new BufferedInputStream(socket.getInputStream(), getDefaultedBufferSize()));
+            input = new FromNetASCIIInputStream(getBufferedInputStream(socket.getInputStream()));
         } else {
-            input = new BufferedInputStream(socket.getInputStream(), getDefaultedBufferSize());
+            input = getBufferedInputStream(socket.getInputStream());
         }
 
         CSL csl = null;
@@ -1797,16 +1868,16 @@ implements Configurable
         // Treat everything else as binary for now
         try
         {
-            Util.copyStream(input, local, getDefaultedBufferSize(),
+            Util.copyStream(input, local, getBufferSize(),
                     CopyStreamEvent.UNKNOWN_STREAM_SIZE, __mergeListeners(csl),
                     false);
         } finally {
             Util.closeQuietly(socket);
+            if (csl != null) {
+                csl.cleanUp(); // fetch any outstanding keepalive replies
+            }
         }
 
-        if (csl != null) {
-            csl.cleanUp(); // fetch any outstanding keepalive replies
-        }
         // Get the transfer response
         boolean ok = completePendingCommand();
         return ok;
@@ -1841,7 +1912,7 @@ implements Configurable
      */
     public InputStream retrieveFileStream(String remote) throws IOException
     {
-        return _retrieveFileStream(FTPCommand.getCommand(FTPCommand.RETR), remote);
+        return _retrieveFileStream(FTPCmd.RETR.getCommand(), remote);
     }
 
     /**
@@ -1865,8 +1936,7 @@ implements Configurable
             // programmer if possible.  Programmers can decide on their
             // own if they want to wrap the SocketInputStream we return
             // for file types other than ASCII.
-            input = new BufferedInputStream(input,
-                    getDefaultedBufferSize());
+            input = getBufferedInputStream(input);
             input = new FromNetASCIIInputStream(input);
         }
         return new org.apache.commons.net.io.SocketInputStream(socket, input);
@@ -1900,7 +1970,7 @@ implements Configurable
     public boolean storeFile(String remote, InputStream local)
     throws IOException
     {
-        return __storeFile(FTPCommand.STOR, remote, local);
+        return __storeFile(FTPCmd.STOR, remote, local);
     }
 
 
@@ -1931,7 +2001,7 @@ implements Configurable
      */
     public OutputStream storeFileStream(String remote) throws IOException
     {
-        return __storeFileStream(FTPCommand.STOR, remote);
+        return __storeFileStream(FTPCmd.STOR, remote);
     }
 
     /**
@@ -1962,7 +2032,7 @@ implements Configurable
     public boolean appendFile(String remote, InputStream local)
     throws IOException
     {
-        return __storeFile(FTPCommand.APPE, remote, local);
+        return __storeFile(FTPCmd.APPE, remote, local);
     }
 
     /**
@@ -1992,7 +2062,7 @@ implements Configurable
      */
     public OutputStream appendFileStream(String remote) throws IOException
     {
-        return __storeFileStream(FTPCommand.APPE, remote);
+        return __storeFileStream(FTPCmd.APPE, remote);
     }
 
     /**
@@ -2024,7 +2094,7 @@ implements Configurable
     public boolean storeUniqueFile(String remote, InputStream local)
     throws IOException
     {
-        return __storeFile(FTPCommand.STOU, remote, local);
+        return __storeFile(FTPCmd.STOU, remote, local);
     }
 
 
@@ -2057,7 +2127,7 @@ implements Configurable
      */
     public OutputStream storeUniqueFileStream(String remote) throws IOException
     {
-        return __storeFileStream(FTPCommand.STOU, remote);
+        return __storeFileStream(FTPCmd.STOU, remote);
     }
 
     /**
@@ -2086,7 +2156,7 @@ implements Configurable
      */
     public boolean storeUniqueFile(InputStream local) throws IOException
     {
-        return __storeFile(FTPCommand.STOU, null, local);
+        return __storeFile(FTPCmd.STOU, null, local);
     }
 
     /**
@@ -2116,7 +2186,7 @@ implements Configurable
      */
     public OutputStream storeUniqueFileStream() throws IOException
     {
-        return __storeFileStream(FTPCommand.STOU, null);
+        return __storeFileStream(FTPCmd.STOU, null);
     }
 
     /**
@@ -2356,7 +2426,7 @@ implements Configurable
      */
     public FTPFile mlistFile(String pathname) throws IOException
     {
-        boolean success = FTPReply.isPositiveCompletion(sendCommand(FTPCommand.MLST, pathname));
+        boolean success = FTPReply.isPositiveCompletion(sendCommand(FTPCmd.MLST, pathname));
         if (success){
             String entry = getReplyStrings()[1].substring(1); // skip leading space for parser
             return MLSxEntryParser.parseEntry(entry);
@@ -2749,7 +2819,7 @@ implements Configurable
      */
     public String[] listNames(String pathname) throws IOException
     {
-        Socket socket = _openDataConnection_(FTPCommand.NLST, getListArguments(pathname));
+        Socket socket = _openDataConnection_(FTPCmd.NLST, getListArguments(pathname));
 
         if (socket == null) {
             return null;
@@ -3217,7 +3287,7 @@ implements Configurable
             FTPFileEntryParser parser, String pathname)
     throws IOException
     {
-        Socket socket = _openDataConnection_(FTPCommand.LIST, getListArguments(pathname));
+        Socket socket = _openDataConnection_(FTPCmd.LIST, getListArguments(pathname));
 
         FTPListParseEngine engine = new FTPListParseEngine(parser);
         if (socket == null)
@@ -3245,7 +3315,7 @@ implements Configurable
      */
     private FTPListParseEngine initiateMListParsing(String pathname) throws IOException
     {
-        Socket socket = _openDataConnection_(FTPCommand.MLSD, pathname);
+        Socket socket = _openDataConnection_(FTPCmd.MLSD, pathname);
         FTPListParseEngine engine = new FTPListParseEngine(MLSxEntryParser.getInstance());
         if (socket == null)
         {
@@ -3370,7 +3440,7 @@ implements Configurable
 
 
     /**
-     * Set the internal buffer size for data sockets.
+     * Set the internal buffer size for buffered data streams.
      *
      * @param bufSize The size of the buffer. Use a non-positive value to use the default.
      */
@@ -3379,7 +3449,7 @@ implements Configurable
     }
 
     /**
-     * Retrieve the current internal buffer size for data sockets.
+     * Retrieve the current internal buffer size for buffered data streams.
      * @return The current buffer size.
      */
     public int getBufferSize() {
@@ -3387,11 +3457,43 @@ implements Configurable
     }
 
     /**
-     * Get the buffer size, with default set to Util.DEFAULT_COPY_BUFFER_SIZE.
-     * @return the buffer size.
+     * Sets the value to be used for the data socket SO_SNDBUF option.
+     * If the value is positive, the option will be set when the data socket has been created.
+     *
+     * @param bufSize The size of the buffer, zero or negative means the value is ignored.
+      * @since 3.3
+    */
+    public void setSendDataSocketBufferSize(int bufSize) {
+        __sendDataSocketBufferSize = bufSize;
+    }
+
+    /**
+     * Retrieve the value to be used for the data socket SO_SNDBUF option.
+     * @return The current buffer size.
+     * @since 3.3
      */
-    private int getDefaultedBufferSize() {
-        return __bufferSize > 0 ? __bufferSize : Util.DEFAULT_COPY_BUFFER_SIZE;
+    public int getSendDataSocketBufferSize() {
+        return __sendDataSocketBufferSize;
+    }
+
+    /**
+     * Sets the value to be used for the data socket SO_RCVBUF option.
+     * If the value is positive, the option will be set when the data socket has been created.
+     *
+     * @param bufSize The size of the buffer, zero or negative means the value is ignored.
+     * @since 3.3
+     */
+    public void setReceieveDataSocketBufferSize(int bufSize) {
+        __receiveDataSocketBufferSize = bufSize;
+    }
+
+    /**
+     * Retrieve the value to be used for the data socket SO_RCVBUF option.
+     * @return The current buffer size.
+     * @since 3.3
+     */
+    public int getReceiveDataSocketBufferSize() {
+        return __receiveDataSocketBufferSize;
     }
 
     /**
@@ -3402,6 +3504,7 @@ implements Configurable
      * provide non-standard configurations to the parser.
      * @since 1.4
      */
+    @Override
     public void configure(FTPClientConfig config) {
         this.__configuration = config;
     }
@@ -3518,6 +3621,20 @@ implements Configurable
         return __controlKeepAliveReplyTimeout;
     }
 
+    private OutputStream getBufferedOutputStream(OutputStream outputStream) {
+        if (__bufferSize > 0) {
+            return new BufferedOutputStream(outputStream, __bufferSize);
+        }
+        return new BufferedOutputStream(outputStream);
+    }
+
+    private InputStream getBufferedInputStream(InputStream inputStream) {
+        if (__bufferSize > 0) {
+            return new BufferedInputStream(inputStream, __bufferSize);            
+        }
+        return new BufferedInputStream(inputStream);
+    }
+
     // @since 3.0
     private static class CSL implements CopyStreamListener {
 
@@ -3535,10 +3652,12 @@ implements Configurable
             parent.setSoTimeout(maxWait);
         }
 
+        @Override
         public void bytesTransferred(CopyStreamEvent event) {
             bytesTransferred(event.getTotalBytesTransferred(), event.getBytesTransferred(), event.getStreamSize());
         }
 
+        @Override
         public void bytesTransferred(long totalBytesTransferred,
                 int bytesTransferred, long streamSize) {
             long now = System.currentTimeMillis();
@@ -3554,10 +3673,13 @@ implements Configurable
         }
 
         void cleanUp() throws IOException {
-            while(notAcked-- > 0) {
-                parent.__getReplyNoReport();
+            try {
+                while(notAcked-- > 0) {
+                    parent.__getReplyNoReport();
+                }
+            } finally {
+                parent.setSoTimeout(currentSoTimeout);                
             }
-            parent.setSoTimeout(currentSoTimeout);
         }
 
     }

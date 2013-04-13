@@ -36,7 +36,7 @@ import org.apache.commons.net.util.ListenerList;
  * @see CopyStreamEvent
  * @see CopyStreamListener
  * @see Util
- * @version $Id: CopyStreamAdapter.java 1299238 2012-03-10 17:12:28Z sebb $
+ * @version $Id: CopyStreamAdapter.java 1417442 2012-12-05 14:32:02Z sebb $
  */
 public class CopyStreamAdapter implements CopyStreamListener
 {
@@ -60,6 +60,7 @@ public class CopyStreamAdapter implements CopyStreamListener
      * @param event The CopyStreamEvent fired by the copying of a block of
      *              bytes.
      */
+    @Override
     public void bytesTransferred(CopyStreamEvent event)
     {
         for (EventListener listener : internalListeners)
@@ -83,6 +84,7 @@ public class CopyStreamAdapter implements CopyStreamListener
      *        This may be equal to CopyStreamEvent.UNKNOWN_STREAM_SIZE if
      *        the size is unknown.
      */
+    @Override
     public void bytesTransferred(long totalBytesTransferred,
                                  int bytesTransferred, long streamSize)
     {
