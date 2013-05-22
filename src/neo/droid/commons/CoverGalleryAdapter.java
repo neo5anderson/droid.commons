@@ -1,7 +1,6 @@
 package neo.droid.commons;
 
 import android.graphics.Bitmap;
-import android.view.Display;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.BaseAdapter;
@@ -21,16 +20,10 @@ public class CoverGalleryAdapter extends BaseAdapter {
 	private int phoneWidth;
 
 	/** 获取到图像资源标识的数组的构造方法 */
-	public CoverGalleryAdapter(int[] arrays, Display display) {
+	public CoverGalleryAdapter(int[] arrays, int phoneWidth) {
 		super();
-
-		if (display.getWidth() > display.getHeight()) {
-			phoneWidth = display.getHeight();
-		} else {
-			phoneWidth = display.getWidth();
-		}
-
 		drawableArrays = arrays;
+		this.phoneWidth = phoneWidth;
 	}
 
 	@Override
@@ -54,11 +47,11 @@ public class CoverGalleryAdapter extends BaseAdapter {
 
 	@Override
 	public View getView(int position, View view, ViewGroup parent) {
-		Bitmap bitmap = ImageUtils.decodeResource(drawableArrays[position
+		Bitmap bitmap = Images.decodeResource(drawableArrays[position
 				% drawableArrays.length]);
 
 		// [Neo] 制作倒影效果的 ImageView
-		ImageView imageView = ResUtils.getImageViewAttachedBitmap(ImageUtils
+		ImageView imageView = Resource.getImageViewAttachedBitmap(Images
 				.getReflectedBitmap(bitmap, (int) (bitmap.getHeight() * 0.4f),
 						bitmap.getHeight(), (int) Math.min(
 								Math.max(bitmap.getHeight() * 0.03f, 3), 5)));

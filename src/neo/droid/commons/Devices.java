@@ -13,7 +13,7 @@ import android.net.Uri;
  * 
  * @author neo
  */
-public class DevUtils {
+public class Devices {
 
 	/**
 	 * 获取 wifi 状态
@@ -21,10 +21,10 @@ public class DevUtils {
 	 * @return 状态对象
 	 */
 	public static State getWifiState() {
-		if (null == ResUtils.CONTEXT)
+		if (null == Resource.CONTEXT)
 			return null;
 
-		ConnectivityManager cManager = (ConnectivityManager) (ResUtils.CONTEXT
+		ConnectivityManager cManager = (ConnectivityManager) (Resource.CONTEXT
 				.getSystemService(Context.CONNECTIVITY_SERVICE));
 		return cManager.getNetworkInfo(ConnectivityManager.TYPE_WIFI)
 				.getState();
@@ -36,10 +36,10 @@ public class DevUtils {
 	 * @return 状态对象
 	 */
 	public static State get3GState() {
-		if (null == ResUtils.CONTEXT)
+		if (null == Resource.CONTEXT)
 			return null;
 
-		ConnectivityManager cManager = (ConnectivityManager) (ResUtils.CONTEXT
+		ConnectivityManager cManager = (ConnectivityManager) (Resource.CONTEXT
 				.getSystemService(Context.CONNECTIVITY_SERVICE));
 		return cManager.getNetworkInfo(ConnectivityManager.TYPE_MOBILE)
 				.getState();
@@ -84,7 +84,7 @@ public class DevUtils {
 	 * @return 是否
 	 */
 	public static boolean isWAPMode() {
-		String apnString = ((ConnectivityManager) ResUtils.CONTEXT
+		String apnString = ((ConnectivityManager) Resource.CONTEXT
 				.getSystemService(Context.CONNECTIVITY_SERVICE))
 				.getNetworkInfo(ConnectivityManager.TYPE_MOBILE).getExtraInfo();
 
@@ -105,7 +105,7 @@ public class DevUtils {
 	 * @deprecated 普通的应用是没有权限去执行此操作的，会直接终止应用；4.x 已弃用。
 	 */
 	public static boolean setNETMode() {
-		ContentResolver resolver = ResUtils.CONTEXT.getContentResolver();
+		ContentResolver resolver = Resource.CONTEXT.getContentResolver();
 		Cursor cursor = resolver.query(
 				Uri.parse("content://telephony/carriers"),
 				new String[] { "_id" }, "apn like '%net' and current=1", null,

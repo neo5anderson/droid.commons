@@ -11,6 +11,7 @@ import android.database.sqlite.SQLiteOpenHelper;
  * SQLite 协助类
  * 
  * @author neo
+ * @deprecated
  */
 public class SQLiteHelper {
 	/** 数据库名称 */

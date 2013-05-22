@@ -17,7 +17,7 @@ import android.database.sqlite.SQLiteOpenHelper;
  * 
  * @author neo
  */
-public class SQLiteUtils {
+public class SQLites {
 
 	private Map<String, String> tablesMap;
 	private SQLiteOpenUtils openUtils;
@@ -29,7 +29,7 @@ public class SQLiteUtils {
 	 * 构造
 	 * 
 	 */
-	public SQLiteUtils() {
+	public SQLites() {
 		isOpen = false;
 	}
 

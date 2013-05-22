@@ -1,8 +1,8 @@
 package neo.droid.commons;
 
-import android.annotation.SuppressLint;
 import android.content.Context;
 import android.graphics.Bitmap;
+import android.net.http.SslError;
 import android.os.Handler;
 import android.os.Message;
 import android.view.MotionEvent;
@@ -11,6 +11,7 @@ import android.view.ViewGroup.LayoutParams;
 import android.webkit.DownloadListener;
 import android.webkit.HttpAuthHandler;
 import android.webkit.JsResult;
+import android.webkit.SslErrorHandler;
 import android.webkit.WebChromeClient;
 import android.webkit.WebSettings.ZoomDensity;
 import android.webkit.WebView;
@@ -22,8 +23,7 @@ import android.widget.LinearLayout;
  * 
  * @author neo
  */
-@SuppressLint("SetJavaScriptEnabled")
-public class WebViewHelper {
+public class WebViews {
 
 	/** 默认处理交互的 what **/
 	public static final int DEFAULT_WHAT = 0x11;
@@ -60,11 +60,11 @@ public class WebViewHelper {
 	 * @param webView
 	 * @param handler
 	 */
-	public WebViewHelper(Context context, LinearLayout layout, Handler handler) {
+	public WebViews(Context context, LinearLayout layout, Handler handler) {
 		webView = new MyWebView(context);
 		layout.removeAllViews();
 		layout.addView(webView, new LinearLayout.LayoutParams(new LayoutParams(
-				LayoutParams.FILL_PARENT, LayoutParams.FILL_PARENT)));
+				LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)));
 		HANDLER = handler;
 		initWebView();
 	}
@@ -222,12 +222,12 @@ public class WebViewHelper {
 		}
 
 		// [Neo] TODO after api > 2.1
-		// @Override
-		// public void onReceivedSslError(WebView view, SslErrorHandler handler,
-		// SslError error) {
-		// handler.proceed();
-		// super.onReceivedSslError(view, handler, error);
-		// }
+		@Override
+		public void onReceivedSslError(WebView view, SslErrorHandler handler,
+				SslError error) {
+			handler.proceed();
+			super.onReceivedSslError(view, handler, error);
+		}
 
 	}
 

@@ -33,7 +33,6 @@ import org.apache.http.params.HttpConnectionParams;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import android.app.Activity;
 import android.app.ActivityManager;
 import android.app.NotificationManager;
 import android.content.Context;
@@ -51,7 +50,7 @@ import android.media.MediaPlayer.OnCompletionListener;
 import android.os.Environment;
 import android.os.StatFs;
 import android.telephony.TelephonyManager;
-import android.view.Display;
+import android.util.DisplayMetrics;
 import android.view.View;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.ImageView;
@@ -61,16 +60,10 @@ import android.widget.ImageView;
  * 
  * @author neo
  */
-public class ResUtils {
+public class Resource {
 
 	protected static Context CONTEXT;
 
-	/** 当前的 API 等级 */
-	private static final int API_LEVEL = Integer
-			.parseInt(android.os.Build.VERSION.SDK);
-
-	/** 显示对象 */
-	private static Display DISPLAY;
 	/** 屏幕长度 */
 	private static int DISPLAY_WIDTH;
 	/** 屏幕宽度 */
@@ -90,25 +83,11 @@ public class ResUtils {
 	 */
 	public static void make(Context context) {
 		CONTEXT = context;
-		DENSITY = context.getResources().getDisplayMetrics().density;
-
-		try {
-			// [Neo] 有点小纠结，预览时可能会有空指针异常
-			DISPLAY = ((Activity) CONTEXT).getWindowManager()
-					.getDefaultDisplay();
-
-			if (API_LEVEL < 13) {
-				DISPLAY_WIDTH = DISPLAY.getWidth();
-				DISPLAY_HEIGHT = DISPLAY.getHeight();
-			} else {
-				DISPLAY_WIDTH = 0;
-				DISPLAY_HEIGHT = 0;
-			}
-		} catch (Exception e) {
-			DISPLAY = null;
-			DISPLAY_WIDTH = 0;
-			DISPLAY_HEIGHT = 0;
-		}
+		
+		DisplayMetrics metrics = CONTEXT.getResources().getDisplayMetrics();
+		DISPLAY_WIDTH = metrics.widthPixels;
+		DISPLAY_HEIGHT = metrics.heightPixels;
+		DENSITY = metrics.density;
 	}
 
 	/**
@@ -131,15 +110,6 @@ public class ResUtils {
 		} else {
 			return null;
 		}
-	}
-
-	/**
-	 * 获取显示对象
-	 * 
-	 * @return 显示对象
-	 */
-	public static Display getDisplay() {
-		return DISPLAY;
 	}
 
 	/**
@@ -429,6 +399,12 @@ public class ResUtils {
 		return MEID;
 	}
 
+	/**
+	 * 获取 R 资源类中某个类的反射结果
+	 * 
+	 * @param className
+	 * @return
+	 */
 	public static Map<String, String> getRClassField(String className) {
 		Class<?> class2do = null;
 

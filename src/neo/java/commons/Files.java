@@ -48,7 +48,6 @@ public class Files {
 	 */
 	public static void sort(File[] files) {
 		Arrays.sort(files, new Comparator<File>() {
-
 			@Override
 			public int compare(File file1, File file2) {
 				if (false != file1.isDirectory()
@@ -73,7 +72,6 @@ public class Files {
 	 */
 	public static boolean delete(File file) {
 		boolean result = false;
-
 		if (false != file.isDirectory()) {
 			File[] files = file.listFiles();
 			if (null != files && files.length > 0) {

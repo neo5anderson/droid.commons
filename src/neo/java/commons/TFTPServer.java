@@ -23,6 +23,11 @@ import org.apache.commons.net.tftp.TFTPPacket;
 import org.apache.commons.net.tftp.TFTPReadRequestPacket;
 import org.apache.commons.net.tftp.TFTPWriteRequestPacket;
 
+/**
+ * 依赖 commons-net 的 TFTP 服务端
+ * 
+ * @author neo
+ */
 public class TFTPServer {
 
 	public static final int DEFAULT_PORT = 69;

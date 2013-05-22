@@ -14,6 +14,8 @@ import java.util.Date;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.TimeZone;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -29,7 +31,14 @@ public class Strings {
 	/** ISO-8859-1 字符集的标识 */
 	public static final String ISO8859 = "ISO-8859-1";
 	/** 检查 URL 的正则 */
-	private static final String URL_CHECKER = "^(http|ftp)?(s)?://([\\w-]+.)+[\\w-]+(/[\\w- ./?%&=+-_]*)?$";
+	private static final String URL_CHECKER = "^(http|ftp)?(s)?://([\\w-]+\\.)+[\\w-]+(/[\\w ./?%&=+-_\\(\\)]*)?$";
+
+	/** shell 执行时间的计时器 */
+	private static Timer EXEC_TIMER = null;
+	/** 执行 shell 的处理器 */
+	private static Process EXEC_PROCESS = null;
+	/** 判断 shell 是否正在工作 */
+	private static boolean EXEC_IS_WORKING = false;
 
 	/**
 	 * 字符串判空
@@ -75,7 +84,15 @@ public class Strings {
 		System.out.println(stringBuilder.toString() + "\n");
 	}
 
-	public static String getMapKeyFromIndexOf(Map<String, String> map, int index) {
+	/**
+	 * 根据索引获取 Map 的 key
+	 * 
+	 * @param map
+	 *            类型为 &lt;String, String&gt;
+	 * @param index
+	 * @return key 的字符串
+	 */
+	public static String getMapKeyIndexOf(Map<String, String> map, int index) {
 		if (map.size() <= index || index < 0) {
 			index %= map.size();
 		}
@@ -89,9 +106,16 @@ public class Strings {
 		return iterator.next();
 	}
 
-	public static String getMapValueFromIndexOf(Map<String, String> map,
-			int index) {
-		return map.get(getMapKeyFromIndexOf(map, index));
+	/**
+	 * 根据索引获取 Map 的 value
+	 * 
+	 * @param map
+	 *            类型为 &lt;String, String&gt;
+	 * @param index
+	 * @return value 字符串
+	 */
+	public static String getMapValueIndexOf(Map<String, String> map, int index) {
+		return map.get(getMapKeyIndexOf(map, index));
 	}
 
 	/**
@@ -99,10 +123,15 @@ public class Strings {
 	 * 
 	 * @param pattern
 	 *            简单日期格式模式
+	 * @param timeZone
+	 *            可选的时区标识
 	 * @return 格式化后的字符串对象
 	 */
-	public static String getCurrentTimeString(String pattern) {
+	public static String getCurrentTimeString(String pattern, String timeZone) {
 		SimpleDateFormat format = new SimpleDateFormat(pattern);
+		if (false == isEmpty(timeZone)) {
+			format.setTimeZone(TimeZone.getTimeZone(timeZone));
+		}
 		return format.format(new Date());
 	}
 
@@ -115,7 +144,7 @@ public class Strings {
 	 *            简单日期格式模式
 	 * @return 格式化后的字符串对象
 	 */
-	public static String getFormattedTimeString(long timeStamp, String pattern) {
+	public static String getTimeStringFromStamp(long timeStamp, String pattern) {
 		SimpleDateFormat format = new SimpleDateFormat(pattern);
 		format.setTimeZone(TimeZone.getTimeZone("UTC"));
 		return format.format(timeStamp);
@@ -135,18 +164,20 @@ public class Strings {
 	}
 
 	/**
-	 * 指定字符集的字符串转换成 ISO8859
+	 * 将字符串由某个字符集转化成另外一种字符集
 	 * 
 	 * @param string
 	 *            待转换的字符串
-	 * @param charset
-	 *            字符集标识
+	 * @param orgCharset
+	 *            原始字符集标识
+	 * @param targetCharset
+	 *            目标字符集标识
 	 * @return 转换后的字符串
 	 * @throws UnsupportedEncodingException
 	 */
-	public static String getISO(String string, String charset)
-			throws UnsupportedEncodingException {
-		return new String(string.getBytes(charset), ISO8859);
+	public static String getISO(String string, String orgCharset,
+			String targetCharset) throws UnsupportedEncodingException {
+		return new String(string.getBytes(orgCharset), targetCharset);
 	}
 
 	/**
@@ -269,13 +300,21 @@ public class Strings {
 	}
 
 	/**
-	 * 执行某个 shell 命令，可区分当前的平台
+	 * 执行某个 shell 命令，可区分 PC 平台
 	 * 
 	 * @param cmd
 	 *            命令字符串
+	 * @param delayedToKill
+	 *            指定这个命令的最大执行时间
 	 * @return 返回执行的结果，阻塞的
 	 */
-	public static String execShell(String cmd) {
+	public static String execShell(String cmd, int delayedToKill) {
+		stopCMD();
+
+		if (delayedToKill > 0) {
+			EXEC_TIMER = new Timer();
+		}
+
 		String[] cmds = null;
 
 		if (System.getProperty("os.name").contains("ows")) {
@@ -284,23 +323,30 @@ public class Strings {
 			cmds = new String[] { "sh", "-c", cmd };
 		}
 
-		final int readBuffer = 5555;
+		int read = 0;
 		StringBuilder sBuilder = new StringBuilder();
 
 		try {
-			Process process = Runtime.getRuntime().exec(cmds);
-			BufferedReader stdout = new BufferedReader(new InputStreamReader(
-					process.getInputStream()), readBuffer);
-			BufferedReader stderr = new BufferedReader(new InputStreamReader(
-					process.getErrorStream()), readBuffer);
+			ProcessBuilder pBuilder = new ProcessBuilder(cmds);
+			pBuilder.redirectErrorStream(true);
 
-			String perLine = null;
+			EXEC_PROCESS = pBuilder.start();
+			BufferedReader reader = new BufferedReader(new InputStreamReader(
+					EXEC_PROCESS.getInputStream()));
 
-			while ((null != (perLine = stdout.readLine()))
-					|| (null != (perLine = stderr.readLine()))) {
-				if (false == isEmpty(perLine)) {
-					sBuilder.append(perLine + "\n");
-				}
+			if (null != EXEC_TIMER) {
+				EXEC_TIMER.schedule(new TimerTask() {
+					@Override
+					public void run() {
+						stopCMD();
+					}
+				}, delayedToKill);
+			}
+
+			EXEC_IS_WORKING = true;
+
+			while (-1 != (read = reader.read()) && false != EXEC_IS_WORKING) {
+				sBuilder.append((char) read);
 			}
 
 		} catch (Exception e) {
@@ -308,6 +354,37 @@ public class Strings {
 		}
 
 		return sBuilder.toString();
+	}
+
+	/**
+	 * 执行某个 shell 命令，可区分当前的平台
+	 * 
+	 * @param cmd
+	 *            命令字符串
+	 * @return 返回执行的结果，阻塞的
+	 */
+	public static String execShell(String cmd) {
+		return execShell(cmd, -1);
+	}
+
+	/**
+	 * 停止当前正在运行的命令
+	 * 
+	 * @return 当前是否有命令正在运行
+	 */
+	private static boolean stopCMD() {
+		if (null != EXEC_TIMER) {
+			EXEC_TIMER.cancel();
+			EXEC_TIMER = null;
+		}
+
+		if (null != EXEC_PROCESS) {
+			EXEC_IS_WORKING = false;
+			EXEC_PROCESS.destroy();
+			EXEC_PROCESS = null;
+			return true;
+		}
+		return false;
 	}
 
 	/**

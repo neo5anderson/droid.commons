@@ -4,7 +4,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.MalformedURLException;
 
-import neo.java.commons.NetUtils;
+import neo.java.commons.Nets;
 import neo.java.commons.Strings;
 import android.graphics.Bitmap;
 import android.graphics.Bitmap.Config;
@@ -19,19 +19,15 @@ import android.graphics.PorterDuffXfermode;
 import android.graphics.Rect;
 import android.graphics.RectF;
 import android.graphics.Shader.TileMode;
-import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
+import android.os.Build;
 
 /**
  * 通用图形处理工具类
  * 
  * @author neo
  */
-public class ImageUtils {
-
-	/** 当前运行的 API 等级 */
-	private static final int API_LEVEL = Integer
-			.parseInt(android.os.Build.VERSION.SDK);
+public class Images {
 
 	/** 通用的比特图的选项对象 */
 	private static BitmapFactory.Options BITMAP_FACTORY_OPTIONS;
@@ -45,7 +41,7 @@ public class ImageUtils {
 		if (null == BITMAP_FACTORY_OPTIONS) {
 			BITMAP_FACTORY_OPTIONS = new BitmapFactory.Options();
 			BITMAP_FACTORY_OPTIONS.inPurgeable = true;
-			if (API_LEVEL < 14) {
+			if (Build.VERSION.SDK_INT < 14) {
 				try {
 					// [Neo] 可能会有安全异常
 					BitmapFactory.Options.class.getField("inNativeAlloc")
@@ -82,7 +78,7 @@ public class ImageUtils {
 	 * @return 比特图对象
 	 */
 	public static Bitmap decodeResource(int resID) {
-		return BitmapFactory.decodeResource(ResUtils.getResources(), resID,
+		return BitmapFactory.decodeResource(Resource.getResources(), resID,
 				getOptions());
 	}
 
@@ -101,7 +97,7 @@ public class ImageUtils {
 		// return BitmapFactory.decodeStream(new URL(url).openStream(), null,
 		// getOptions());
 		return BitmapFactory.decodeStream(
-				NetUtils.getInputStreamFromURL(url, Strings.UTF_8), null,
+				Nets.getInputStreamFromURL(url, Strings.UTF_8), null,
 				getOptions());
 	}
 
@@ -163,11 +159,11 @@ public class ImageUtils {
 	 * @throws NullPointerException
 	 */
 	public static Drawable getDrawable(int resID) throws NullPointerException {
-		if (null == ResUtils.CONTEXT) {
+		if (null == Resource.CONTEXT) {
 			return null;
 		}
 
-		return ResUtils.getResources().getDrawable(resID);
+		return Resource.getResources().getDrawable(resID);
 	}
 
 	/**
@@ -192,23 +188,6 @@ public class ImageUtils {
 				bitmap.getHeight(), matrix, true);
 
 		return newBitmap;
-	}
-
-	/**
-	 * 修改 Drawable 对象的尺寸
-	 * 
-	 * @param drawable
-	 *            待修改的 Drawable 对象
-	 * @param width
-	 *            长
-	 * @param height
-	 *            高
-	 * @return 修改后的 Drawable 对象
-	 */
-	public static Drawable resizeDrawable(Drawable drawable, int width,
-			int height) {
-		return new BitmapDrawable(resizeBitmap(decodeDrawable(drawable), width,
-				height));
 	}
 
 	/**
@@ -245,23 +224,6 @@ public class ImageUtils {
 	}
 
 	/**
-	 * 水平方向合并 Drawable 对象
-	 * 
-	 * @param leftDrawable
-	 *            左边的图像
-	 * @param rightDrawable
-	 *            右边的图像
-	 * @param isAutoMargin
-	 *            是否自动居中
-	 * @return 合并后的 Drawable 对象
-	 */
-	public static Drawable joinHorizontal(Drawable leftDrawable,
-			Drawable rightDrawable, boolean isAutoMargin) {
-		return new BitmapDrawable(joinHorizontal(decodeDrawable(leftDrawable),
-				decodeDrawable(rightDrawable), isAutoMargin));
-	}
-
-	/**
 	 * 垂直方向合并比特图
 	 * 
 	 * @param topBitmap
@@ -292,23 +254,6 @@ public class ImageUtils {
 			canvas.drawBitmap(bottomBitmap, 0, topBitmap.getHeight(), null);
 		}
 		return joinedBitmap;
-	}
-
-	/**
-	 * 垂直方向合并 Drawable 图形
-	 * 
-	 * @param topDrawable
-	 *            上面的图
-	 * @param bottomDrawable
-	 *            下面的图
-	 * @param isAutoMargin
-	 *            是否自动区中
-	 * @return 合并后的 Drawable 对象
-	 */
-	public static Drawable joinVertical(Drawable topDrawable,
-			Drawable bottomDrawable, boolean isAutoMargin) {
-		return new BitmapDrawable(joinVertical(decodeDrawable(topDrawable),
-				decodeDrawable(bottomDrawable), isAutoMargin));
 	}
 
 	/**
@@ -469,7 +414,7 @@ public class ImageUtils {
 			return null;
 		} catch (OutOfMemoryError e) {
 			e.printStackTrace();
-			System.runFinalizersOnExit(true);
+			// System.runFinalizersOnExit(true);
 			System.exit(0);
 			return null;
 		}

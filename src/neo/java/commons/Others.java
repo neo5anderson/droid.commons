@@ -2,9 +2,10 @@ package neo.java.commons;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 
 /**
- * 其他类别的静态方法
+ * 其他静态方法
  * 
  * @author neo
  */
@@ -32,9 +33,23 @@ public class Others {
 		Field[] fields = class2do.getDeclaredFields();
 		widthString = formatArrayOutput(fields.length);
 		for (int i = 0; i < fields.length; i++) {
-			STRING_BUILDER.append(String.format(tabwidthString + "field"
-					+ widthString + ": %s %s\n", i, fields[i].getType()
-					.getCanonicalName(), fields[i].getName()));
+			int modifier = fields[i].getModifiers();
+			if (modifier == (Modifier.PUBLIC | Modifier.FINAL | Modifier.STATIC)) {
+				try {
+					STRING_BUILDER.append(String.format(tabwidthString
+							+ "field" + widthString + ": %s %s %s = %s\n", i,
+							Modifier.toString(modifier), fields[i].getType()
+									.getCanonicalName(), fields[i].getName(),
+							fields[i].get(null)));
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+			} else {
+				STRING_BUILDER.append(String.format(tabwidthString + "field"
+						+ widthString + ": %s %s %s\n", i, Modifier
+						.toString(modifier), fields[i].getType()
+						.getCanonicalName(), fields[i].getName()));
+			}
 		}
 
 		Class<?>[] classes = null;
@@ -42,8 +57,9 @@ public class Others {
 		widthString = formatArrayOutput(methods.length);
 		for (int i = 0; i < methods.length; i++) {
 			STRING_BUILDER.append(String.format(tabwidthString + "method"
-					+ widthString + ": %s %s(", i, methods[i].getReturnType()
-					.getCanonicalName(), methods[i].getName()));
+					+ widthString + ": %s %s %s(", i, Modifier
+					.toString(methods[i].getModifiers()), methods[i]
+					.getReturnType().getCanonicalName(), methods[i].getName()));
 			classes = methods[i].getParameterTypes();
 			for (int j = 0; j < classes.length; j++) {
 				STRING_BUILDER.append(classes[j].getCanonicalName() + ", ");
@@ -56,8 +72,9 @@ public class Others {
 		widthString = formatArrayOutput(classes.length);
 		for (int i = 0; i < classes.length; i++) {
 			STRING_BUILDER.append(String.format(tabwidthString + "class"
-					+ widthString + ": %s\n", i, classes[i].getName()));
-
+					+ widthString + ": %s %s\n", i,
+					Modifier.toString(classes[i].getModifiers()),
+					classes[i].getName()));
 			try {
 				getAllFieldMethodClassFromClass(Class.forName(classes[i]
 						.getName()));
@@ -68,20 +85,19 @@ public class Others {
 
 		LAYER--;
 		if (0 == LAYER) {
-			System.out.println(STRING_BUILDER.toString());
+			System.out.println(STRING_BUILDER.toString().replace("java.lang.",
+					""));
 			STRING_BUILDER.delete(0, STRING_BUILDER.length());
 		}
 	}
 
 	private static String formatArrayOutput(int length) {
 		String widthString = "[%d]";
-
 		if (length > 99) {
 			widthString = "[%-3d]";
 		} else if (length > 9) {
 			widthString = "[%-2d]";
 		}
-
 		return widthString;
 	}
 

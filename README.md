@@ -18,6 +18,9 @@ Android 也搞了快一年了，稍稍整理些常用的方法，方便以后的
 + 2013.04.13 添加 org.apache.commons.net v3.3 部分代码，帮助完成 FTP/TFTP  
 功能，更新 jar 包和 doc。
 
++ 2013.05.22 规范了部分命名方式，修订部分错误，重新打包了不包含 WebSerices  
+以及 TFTP 的 doc 和 jar。代码仍然保留，供大伙参考。
+
 # neo.java.commons
 
 这个包里面都是纯 Java 的工具包，都是自己写的，一开始就想把 Android 代码和  

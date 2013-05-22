@@ -13,7 +13,7 @@ import java.net.URL;
  * 
  * @author neo
  */
-public class NetUtils {
+public class Nets {
 
 	/** User-Agent 标识 */
 	private static String USER_AGENT = "Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1)";
@@ -82,6 +82,37 @@ public class NetUtils {
 	}
 
 	/**
+	 * 通过 POST 获取输入流
+	 * 
+	 * @param url
+	 *            地址
+	 * @param params
+	 *            POST 参数
+	 * @param enc
+	 *            指定要转换的字符集
+	 * @throws MalformedURLException
+	 * @throws IOException
+	 * @return 获取到输入流
+	 */
+	public static InputStream getInputStreamFromURLByPost(String url,
+			String params, String enc) throws MalformedURLException,
+			IOException {
+		HttpURLConnection connection = (HttpURLConnection) (new URL(url)
+				.openConnection());
+		connection.setUseCaches(false);
+		connection.setRequestMethod("POST");
+		connection.setRequestProperty("Accept", "*/*");
+		connection.setRequestProperty("User-Agent", USER_AGENT);
+		connection.setRequestProperty("Charset", enc);
+
+		connection.setDoOutput(true);
+		connection.getOutputStream().write(params.getBytes());
+		connection.getOutputStream().flush();
+		connection.getOutputStream().close();
+		return connection.getInputStream();
+	}
+
+	/**
 	 * 发送 GET 请求
 	 * 
 	 * @param url
@@ -89,7 +120,7 @@ public class NetUtils {
 	 * @param enc
 	 *            指定要转换的字符集
 	 * @throws IOException
-	 * @return GET 请求的返回数据
+	 * @return GET 请求的字符串
 	 */
 	public static String requestGET(String url, String enc) throws IOException {
 		return inputStream2String(getInputStreamFromURL(url, enc), enc);
@@ -105,23 +136,12 @@ public class NetUtils {
 	 * @param enc
 	 *            指定要转换的字符集
 	 * @throws IOException
-	 * @return POST 请求的返回数据
+	 * @return POST 请求的字符串
 	 */
 	public static String requestPOST(String url, String params, String enc)
 			throws IOException {
-		HttpURLConnection connection = (HttpURLConnection) (new URL(url)
-				.openConnection());
-		connection.setUseCaches(false);
-		connection.setRequestMethod("POST");
-		connection.setRequestProperty("Accept", "*/*");
-		connection.setRequestProperty("User-Agent", USER_AGENT);
-		connection.setRequestProperty("Charset", enc);
-
-		connection.setDoOutput(true);
-		connection.getOutputStream().write(params.getBytes());
-		connection.getOutputStream().flush();
-		connection.getOutputStream().close();
-		return inputStream2String(connection.getInputStream(), enc);
+		return inputStream2String(
+				getInputStreamFromURLByPost(url, params, enc), enc);
 	}
 
 }
